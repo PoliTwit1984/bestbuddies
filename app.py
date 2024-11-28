@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, url_for, send_from_directory
+from werkzeug.utils import secure_filename
 from database import Database
 from dotenv import load_dotenv
 import os
@@ -14,6 +15,9 @@ client = anthropic.Client(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 # For demo purposes, using a static user_id
 DEMO_USER_ID = "demo_user"
+
+# Ensure the media directory exists
+os.makedirs('media', exist_ok=True)
 
 @app.route('/')
 def index():
@@ -104,32 +108,43 @@ def create_entry():
         print(f"Error creating entry: {str(e)}")
         return jsonify({'error': f'Failed to create entry: {str(e)}'}), 500
 
-@app.route('/api/entries/<entry_id>', methods=['PUT'])
-def update_entry(entry_id):
-    try:
-        data = request.form
-        title = data.get('title')
-        content = data.get('content')
-        entry_date = data.get('entry_date')
-        tags = data.get('tags', '').split(',') if data.get('tags') else None
-        if tags:
-            tags = [tag.strip() for tag in tags if tag.strip()]
-        media_files = request.files.getlist('media')
-        
-        success = db.update_entry(
-            DEMO_USER_ID,
-            entry_id,
-            title,
-            content,
-            entry_date,
-            tags,
-            media_files if media_files else None
-        )
-        
-        return jsonify({'success': success})
-    except Exception as e:
-        print(f"Error updating entry: {str(e)}")
-        return jsonify({'error': 'Failed to update entry'}), 500
+@app.route('/api/entries/<entry_id>', methods=['GET', 'PUT'])
+def entry_detail(entry_id):
+    if request.method == 'GET':
+        try:
+            entry = db.get_entry(DEMO_USER_ID, entry_id)
+            if entry:
+                return jsonify(entry)
+            else:
+                return jsonify({'error': 'Entry not found'}), 404
+        except Exception as e:
+            print(f"Error fetching entry: {str(e)}")
+            return jsonify({'error': 'Failed to fetch entry'}), 500
+    elif request.method == 'PUT':
+        try:
+            data = request.json  # Use request.json to parse JSON payload
+            title = data.get('title')
+            content = data.get('content')
+            entry_date = data.get('entry_date')
+            tags = data.get('tags', '').split(',') if data.get('tags') else None
+            if tags:
+                tags = [tag.strip() for tag in tags if tag.strip()]
+            media_files = request.files.getlist('media')
+            
+            success = db.update_entry(
+                DEMO_USER_ID,
+                entry_id,
+                title,
+                content,
+                entry_date,
+                tags,
+                media_files if media_files else None
+            )
+            
+            return jsonify({'success': success})
+        except Exception as e:
+            print(f"Error updating entry: {str(e)}")
+            return jsonify({'error': 'Failed to update entry'}), 500
 
 @app.route('/api/entries/<entry_id>', methods=['DELETE'])
 def delete_entry(entry_id):
@@ -158,6 +173,26 @@ def serve_media(filename):
     except Exception as e:
         print(f"Error serving media file: {str(e)}")
         return jsonify({'error': 'Media file not found'}), 404
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    try:
+        if 'upload' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+        
+        file = request.files['upload']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        filename = secure_filename(file.filename)
+        file_path = os.path.join('media', filename)
+        file.save(file_path)
+        
+        file_url = url_for('serve_media', filename=filename, _external=True)
+        return jsonify({'uploaded': True, 'url': file_url})
+    except Exception as e:
+        print(f"Error uploading image: {str(e)}")
+        return jsonify({'uploaded': False, 'error': {'message': 'Failed to upload image'}}), 500
 
 @app.route('/api/generate-question', methods=['POST'])
 def generate_question():

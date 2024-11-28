@@ -5,16 +5,15 @@ class EntriesList {
         this.container = document.getElementById('entriesList');
         this.tagFilter = document.getElementById('tagFilter');
         this.initializeTagify();
+        this.editorInstance = null; // Store CKEditor instance
     }
 
     async initializeTagify() {
         try {
-            // Fetch existing tags from the server
             const response = await fetch('/api/tags');
             const tags = await response.json();
             console.log('Fetched existing tags:', tags);
             
-            // Initialize Tagify with whitelist of existing tags
             this.tagify = new Tagify(this.tagFilter, {
                 whitelist: tags.map(tag => tag.tag),
                 dropdown: {
@@ -32,7 +31,6 @@ class EntriesList {
                 delimiters: ",",
                 callbacks: {
                     add: () => {
-                        // Clear input after adding tag
                         this.tagify.DOM.input.value = '';
                     }
                 }
@@ -40,7 +38,6 @@ class EntriesList {
 
             console.log('Tagify initialized with whitelist:', tags.map(tag => tag.tag));
 
-            // Add dropdown toggle button
             const wrapper = this.tagFilter.closest('div');
             const dropdownBtn = document.createElement('button');
             dropdownBtn.type = 'button';
@@ -52,7 +49,6 @@ class EntriesList {
             `;
             wrapper.appendChild(dropdownBtn);
 
-            // Handle dropdown button click
             dropdownBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -64,7 +60,6 @@ class EntriesList {
                 }
             });
 
-            // Clear input after selecting from dropdown
             this.tagify.on('dropdown:select', (e) => {
                 console.log('Tag selected from dropdown:', e.detail);
                 setTimeout(() => {
@@ -119,10 +114,16 @@ class EntriesList {
                         ${this.renderMedia(entry.media)}
                     </div>
                     
-                    <button onclick="window.entriesList.deleteEntry('${entry.id}')"
-                        class="text-red-500 hover:text-red-400 ml-4">
-                        Delete
-                    </button>
+                    <div class="flex flex-col space-y-2 ml-4">
+                        <button onclick="window.entriesList.editEntry('${entry.id}')"
+                            class="text-blue-500 hover:text-blue-400">
+                            Edit
+                        </button>
+                        <button onclick="window.entriesList.deleteEntry('${entry.id}')"
+                            class="text-red-500 hover:text-red-400">
+                            Delete
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -174,6 +175,95 @@ class EntriesList {
         `;
     }
 
+    async editEntry(entryId) {
+        try {
+            const response = await fetch(`/api/entries/${entryId}`);
+            const entry = await response.json();
+
+            // Display edit form with current entry details
+            const editFormHtml = `
+                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+                    <h3 class="text-lg font-semibold">Edit Entry</h3>
+                    <form id="editEntryForm">
+                        <div class="mb-4">
+                            <label class="block text-gray-400 text-sm mb-2" for="editTitle">Title</label>
+                            <input type="text" id="editTitle" name="title" value="${entry.title}" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-400 text-sm mb-2" for="editContent">Content</label>
+                            <textarea id="editContent" name="content" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">${entry.content}</textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-400 text-sm mb-2" for="editEntryDate">Entry Date</label>
+                            <input type="datetime-local" id="editEntryDate" name="entry_date" value="${new Date(entry.entry_date).toISOString().slice(0, 16)}" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
+                        </div>
+                        <button type="button" onclick="window.entriesList.saveEntry('${entry.id}')" class="bg-primary hover:bg-secondary text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+                            Save
+                        </button>
+                    </form>
+                </div>
+            `;
+
+            this.container.innerHTML = editFormHtml;
+
+            // Initialize CKEditor on the content textarea
+            ClassicEditor
+                .create(document.querySelector('#editContent'), {
+                    toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', 'imageUpload', 'mediaEmbed', 'undo', 'redo'],
+                    heading: {
+                        options: [
+                            { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                            { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                            { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                            { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+                        ]
+                    }
+                })
+                .then(editor => {
+                    this.editorInstance = editor; // Store the editor instance
+                })
+                .catch(error => {
+                    console.error('Error initializing CKEditor:', error);
+                });
+
+        } catch (error) {
+            console.error('Error loading entry for editing:', error);
+            showNotification('Error loading entry for editing', true);
+        }
+    }
+
+    async saveEntry(entryId) {
+        const form = document.getElementById('editEntryForm');
+        const formData = new FormData(form);
+
+        // Get the content from CKEditor
+        const content = this.editorInstance.getData();
+
+        try {
+            const response = await fetch(`/api/entries/${entryId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    title: formData.get('title'),
+                    content: content, // Use CKEditor content
+                    entry_date: formData.get('entry_date')
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                this.loadEntries();
+                showNotification('Entry updated successfully');
+            } else {
+                showNotification('Error updating entry', true);
+            }
+        } catch (error) {
+            console.error('Error updating entry:', error);
+            showNotification('Error updating entry', true);
+        }
+    }
+
     async deleteEntry(entryId) {
         if (confirm('Are you sure you want to delete this entry? This action cannot be undone.')) {
             try {
@@ -195,5 +285,4 @@ class EntriesList {
     }
 }
 
-// Initialize and export for global access
 window.entriesList = new EntriesList();

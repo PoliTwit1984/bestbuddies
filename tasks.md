@@ -16,6 +16,8 @@
 - [x] Improved tag input styling for dark theme
 - [x] Fixed tag dropdown dark theme styling
 - [x] Added light mode toggle for UI
+- [x] Implemented edit functionality for journal entries
+- [x] Enhanced CKEditor with image upload capabilities
 
 ## Working Features
 1. Core Functionality
@@ -28,6 +30,7 @@
    - [x] Modular code structure
    - [x] Tag suggestions and autocomplete
    - [x] Rich text editing with formatting options
+   - [x] Edit functionality for journal entries
 
 2. Media Handling
    - [x] File type validation
@@ -48,6 +51,7 @@
    - [x] Component-based architecture
    - [x] Enhanced tag input interface
    - [x] Rich text editor with dark theme
+   - [x] CKEditor with image upload capabilities
 
 ## Current Issues
 1. Tag Input
@@ -62,7 +66,7 @@
 
 ### High Priority
 1. Entry Management
-   - [ ] Edit functionality
+   - [x] Edit functionality
    - [ ] Individual media deletion
    - [x] Rich text editor
    - [ ] Entry drafts

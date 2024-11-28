@@ -9,7 +9,7 @@ Legacy Journal is a Flask-based web application that allows users to create and 
 ## Features
 
 - **Journal Entries**
-  - Create rich text entries with formatting
+  - Create and edit rich text entries with formatting
   - Set custom entry dates and times
   - Add tags for organization
   - Upload multiple media files
@@ -26,6 +26,7 @@ Legacy Journal is a Flask-based web application that allows users to create and 
   - Undo/redo functionality
   - Dark theme integration
   - WYSIWYG editing
+  - Image upload capability
 
 - **Media Support**
   - Images (jpg, jpeg, png, gif)
@@ -169,10 +170,10 @@ Legacy Journal is a Flask-based web application that allows users to create and 
   - Maintain dark theme compatibility
   - Ensure proper form validation
   - Support keyboard shortcuts
+  - Enable image upload functionality
 
 ## Future Enhancements
 
-- Entry editing functionality
 - Advanced search capabilities
 - Timeline view
 - Export functionality

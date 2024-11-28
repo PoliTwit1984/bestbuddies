@@ -2,7 +2,6 @@ import { showNotification, getCurrentDateTime } from './utils.js';
 
 class EntryForm {
     constructor() {
-        // Wait for DOM to be fully loaded before initializing
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
         } else {
@@ -29,16 +28,13 @@ class EntryForm {
             return;
         }
         
-        // Set default date and time
         const dateInput = document.querySelector('input[name="entry_date"]');
         if (dateInput) {
             dateInput.value = getCurrentDateTime();
         }
         
-        // Initialize CKEditor
         this.initializeCKEditor().then(() => {
             console.log('CKEditor initialized successfully');
-            // Only initialize other components after CKEditor is ready
             this.initializeTagify();
             this.initializeFormHandler();
         }).catch(error => {
@@ -49,7 +45,6 @@ class EntryForm {
 
     async initializeCKEditor() {
         try {
-            // Check if CKEditor is available
             if (typeof ClassicEditor === 'undefined') {
                 throw new Error('CKEditor is not loaded');
             }
@@ -58,12 +53,21 @@ class EntryForm {
             console.log('Editor element:', this.editorElement);
 
             this.editor = await ClassicEditor.create(this.editorElement, {
-                toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', 'undo', 'redo'],
+                toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', 'imageUpload', 'mediaEmbed', 'undo', 'redo'],
                 placeholder: 'Write your journal entry here...',
-                removePlugins: ['CKFinderUploadAdapter', 'CKFinder', 'EasyImage', 'Image', 'ImageCaption', 'ImageStyle', 'ImageToolbar', 'ImageUpload', 'MediaEmbed'],
+                ckfinder: {
+                    uploadUrl: '/api/upload-image'
+                },
+                heading: {
+                    options: [
+                        { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                        { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                        { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                        { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' }
+                    ]
+                }
             });
 
-            // Add change listener to verify editor is working
             this.editor.model.document.on('change:data', () => {
                 console.log('Editor content changed');
             });
@@ -84,12 +88,10 @@ class EntryForm {
 
     async initializeTagify() {
         try {
-            // Fetch existing tags from the server
             const response = await fetch('/api/tags');
             const tags = await response.json();
             console.log('Fetched existing tags:', tags);
             
-            // Initialize Tagify with whitelist of existing tags
             this.tagify = new Tagify(this.tagInput, {
                 whitelist: tags.map(tag => tag.tag),
                 dropdown: {
@@ -100,7 +102,7 @@ class EntryForm {
                     fuzzySearch: true,
                     classname: 'tags-dropdown'
                 },
-                editTags: true, // Allow creating new tags
+                editTags: true,
                 maxTags: 10,
                 backspace: "edit",
                 placeholder: "Add tags...",
@@ -108,7 +110,6 @@ class EntryForm {
                 callbacks: {
                     add: (e) => {
                         console.log('Tag added:', e.detail);
-                        // Clear input after adding tag
                         this.tagify.DOM.input.value = '';
                     }
                 }
@@ -116,7 +117,6 @@ class EntryForm {
 
             console.log('Tagify initialized with whitelist:', tags.map(tag => tag.tag));
 
-            // Add dropdown toggle button
             const wrapper = this.tagInput.closest('div');
             const dropdownBtn = document.createElement('button');
             dropdownBtn.type = 'button';
@@ -128,7 +128,6 @@ class EntryForm {
             `;
             wrapper.appendChild(dropdownBtn);
 
-            // Handle dropdown button click
             dropdownBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -140,7 +139,6 @@ class EntryForm {
                 }
             });
 
-            // Handle tab key
             this.tagify.on('keydown', e => {
                 if (e.detail.event.key === 'Tab' && this.tagify.state.inputText) {
                     e.preventDefault();
@@ -154,7 +152,6 @@ class EntryForm {
                 }
             });
 
-            // Clear input after selecting from dropdown
             this.tagify.on('dropdown:select', (e) => {
                 console.log('Tag selected from dropdown:', e.detail);
                 setTimeout(() => {
@@ -163,7 +160,6 @@ class EntryForm {
                 }, 10);
             });
 
-            // Clear input on blur if no tag was added
             this.tagify.on('blur', () => {
                 setTimeout(() => {
                     this.tagify.DOM.input.value = '';
@@ -178,7 +174,7 @@ class EntryForm {
     }
 
     validateFiles(input) {
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        const maxSize = 10 * 1024 * 1024;
         const allowedTypes = {
             'image': ['image/jpeg', 'image/png', 'image/gif'],
             'video': ['video/mp4', 'video/quicktime'],
@@ -252,7 +248,6 @@ class EntryForm {
             return;
         }
         
-        // Get content from CKEditor
         const content = this.editor.getData();
         if (!content.trim()) {
             showNotification('Please enter some content for your journal entry', true);
@@ -265,11 +260,9 @@ class EntryForm {
         try {
             const formData = new FormData(this.form);
             
-            // Set content from CKEditor
             console.log('CKEditor content:', content);
             formData.set('content', content);
             
-            // Get tags from Tagify
             if (this.tagify) {
                 const tags = this.tagify.value.map(tag => tag.value);
                 console.log('Current tagify value:', this.tagify.value);
@@ -279,7 +272,6 @@ class EntryForm {
                 console.warn('Tagify not initialized');
             }
             
-            // Log all form data
             console.log('Form data:');
             for (let [key, value] of formData.entries()) {
                 console.log(`${key}:`, value);
@@ -297,7 +289,6 @@ class EntryForm {
                 const data = await response.json();
                 console.log('Server response data:', data);
                 
-                // Refresh the tag list after successful entry creation
                 const tagsResponse = await fetch('/api/tags');
                 const tags = await tagsResponse.json();
                 console.log('Updated tags from server:', tags);
@@ -331,5 +322,4 @@ class EntryForm {
     }
 }
 
-// Initialize the form
 window.entryForm = new EntryForm();
