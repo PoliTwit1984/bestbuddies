@@ -2,6 +2,10 @@
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-semibold">Your Journey</h2>
         <div class="flex space-x-2">
+            <button id="toggleViewButton" onclick="window.entriesList.toggleView()"
+                class="bg-primary hover:bg-secondary text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+                Toggle View
+            </button>
             <div class="relative">
                 <input type="text" id="tagFilter" placeholder="Filter by tag"
                     class="bg-gray-700 border border-gray-600 rounded-md p-2 focus:outline-none focus:border-primary form-input tagify-input">

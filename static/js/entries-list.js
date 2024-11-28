@@ -6,15 +6,68 @@ class EntriesList {
         this.tagFilter = document.getElementById('tagFilter');
         this.startDateFilter = document.getElementById('startDateFilter');
         this.endDateFilter = document.getElementById('endDateFilter');
+        this.viewMode = 'list';
         this.initializeTagify();
-        this.editorInstance = null; // Store CKEditor instance
+        this.editorInstance = null;
+        this.activePreview = null;
+        this.initializeModal();
+        this.loadEntries();
+    }
+
+    initializeModal() {
+        // Remove existing modal if it exists
+        const existingModal = document.getElementById('entryModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+
+        // Create modal container
+        const modal = document.createElement('div');
+        modal.id = 'entryModal';
+        modal.className = 'fixed inset-0 bg-gray-900 bg-opacity-50 hidden items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="p-6" id="modalContent"></div>
+            </div>
+        `;
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeModal();
+            }
+        });
+        
+        document.body.appendChild(modal);
+    }
+
+    showModal(content) {
+        const modal = document.getElementById('entryModal');
+        const modalContent = document.getElementById('modalContent');
+        modalContent.innerHTML = content;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    closeModal() {
+        const modal = document.getElementById('entryModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.body.classList.remove('overflow-hidden');
+        
+        // Cleanup CKEditor instance if it exists
+        if (this.editorInstance) {
+            this.editorInstance.destroy()
+                .catch(error => console.error('Error destroying CKEditor:', error));
+            this.editorInstance = null;
+        }
     }
 
     async initializeTagify() {
         try {
             const response = await fetch('/api/tags');
             const tags = await response.json();
-            console.log('Fetched existing tags:', tags);
             
             this.tagify = new Tagify(this.tagFilter, {
                 whitelist: tags.map(tag => tag.tag),
@@ -38,8 +91,6 @@ class EntriesList {
                 }
             });
 
-            console.log('Tagify initialized with whitelist:', tags.map(tag => tag.tag));
-
             const wrapper = this.tagFilter.closest('div');
             const dropdownBtn = document.createElement('button');
             dropdownBtn.type = 'button';
@@ -61,15 +112,6 @@ class EntriesList {
                     this.tagify.dropdown.show();
                 }
             });
-
-            this.tagify.on('dropdown:select', (e) => {
-                console.log('Tag selected from dropdown:', e.detail);
-                setTimeout(() => {
-                    this.tagify.DOM.input.value = '';
-                    this.tagify.state.inputText = '';
-                }, 10);
-            });
-
         } catch (error) {
             console.error('Error initializing Tagify:', error);
             showNotification('Error loading tags', true);
@@ -92,26 +134,215 @@ class EntriesList {
 
         try {
             const response = await fetch(`/api/entries?${queryParams.toString()}`);
+            if (!response.ok) throw new Error('Failed to fetch entries');
+            
             const entries = await response.json();
             
-            this.container.innerHTML = entries.map(entry => this.renderEntry(entry)).join('') || 
-                '<p class="text-gray-400">No entries found</p>';
+            if (this.viewMode === 'list') {
+                this.renderListView(entries);
+            } else {
+                this.renderTimeline(entries);
+            }
         } catch (error) {
             console.error('Error:', error);
+            showNotification('Error loading entries', true);
             this.container.innerHTML = '<p class="text-red-500">Error loading entries</p>';
         }
+    }
+
+    renderListView(entries) {
+        if (entries.length === 0) {
+            this.container.innerHTML = '<p class="text-gray-400">No entries found</p>';
+            return;
+        }
+
+        this.container.innerHTML = entries.map(entry => this.renderEntry(entry)).join('');
+    }
+
+    renderTimeline(entries) {
+        if (entries.length === 0) {
+            this.container.innerHTML = '<p class="text-gray-400">No entries to display on timeline</p>';
+            return;
+        }
+
+        this.container.innerHTML = `
+            <div class="timeline-container">
+                <div class="timeline"></div>
+            </div>
+        `;
+        const timelineContainer = this.container.querySelector('.timeline-container');
+        const timeline = timelineContainer.querySelector('.timeline');
+
+        entries.sort((a, b) => new Date(a.entry_date) - new Date(b.entry_date));
+
+        const startDate = this.startDateFilter.value ? 
+            new Date(this.startDateFilter.value) : 
+            new Date(entries[0].entry_date);
+        const endDate = this.endDateFilter.value ? 
+            new Date(this.endDateFilter.value) : 
+            new Date(entries[entries.length - 1].entry_date);
+
+        entries.forEach(entry => {
+            const dot = document.createElement('div');
+            dot.className = 'timeline-dot';
+            const position = this.calculateTimelinePosition(entry.entry_date, startDate, endDate);
+            dot.style.left = `${position}%`;
+            
+            const formattedDate = new Date(entry.entry_date).toLocaleDateString();
+            dot.setAttribute('data-date', formattedDate);
+
+            const preview = document.createElement('div');
+            preview.className = 'timeline-entry-preview';
+            preview.innerHTML = this.createPreviewContent(entry);
+            timelineContainer.appendChild(preview);
+
+            dot.addEventListener('mouseenter', (e) => this.showPreview(e, preview, dot));
+            dot.addEventListener('mouseleave', () => this.hidePreview(preview));
+            dot.addEventListener('click', () => this.showTimelineEntry(entry));
+
+            timeline.appendChild(dot);
+        });
+
+        if (endDate - startDate > 30 * 24 * 60 * 60 * 1000) {
+            this.addTimelineMarkers(timeline, startDate, endDate);
+        }
+    }
+
+    showTimelineEntry(entry) {
+        const entryContent = `
+            <div class="relative">
+                <button onclick="window.entriesList.closeModal()" 
+                    class="absolute top-0 right-0 text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+                
+                <div class="pr-8">
+                    <h3 class="text-xl font-semibold mb-2">${entry.title}</h3>
+                    <p class="text-gray-400 text-sm">Entry Date: ${new Date(entry.entry_date).toLocaleString()}</p>
+                    <p class="text-gray-400 text-sm mb-4">Created: ${new Date(entry.created_at).toLocaleString()}</p>
+                    
+                    <div class="prose prose-invert max-w-none">
+                        ${entry.content}
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 mt-4">
+                        ${entry.tags.map(tag => `
+                            <span class="inline-block bg-gray-700 text-sm px-2 py-1 rounded">${tag}</span>
+                        `).join('')}
+                    </div>
+                    
+                    ${this.renderMedia(entry.media)}
+                    
+                    <div class="flex justify-end space-x-4 mt-6">
+                        <button onclick="window.entriesList.editEntry('${entry.id}')"
+                            class="text-blue-500 hover:text-blue-400 font-semibold">
+                            Edit
+                        </button>
+                        <button onclick="window.entriesList.deleteEntry('${entry.id}')"
+                            class="text-red-500 hover:text-red-400 font-semibold">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        this.showModal(entryContent);
+    }
+
+    calculateTimelinePosition(entryDate, startDate, endDate) {
+        const date = new Date(entryDate);
+        const totalDuration = endDate.getTime() - startDate.getTime();
+        const entryDuration = date.getTime() - startDate.getTime();
+        return Math.max(0, Math.min(100, (entryDuration / totalDuration) * 100));
+    }
+
+    createPreviewContent(entry) {
+        const previewContent = entry.content.length > 100 ? 
+            `${entry.content.substring(0, 100)}...` : 
+            entry.content;
+
+        return `
+            <h4 class="font-semibold mb-2">${entry.title}</h4>
+            <p class="text-sm text-gray-400">${new Date(entry.entry_date).toLocaleString()}</p>
+            <p class="text-sm mt-2">${previewContent}</p>
+            ${entry.tags.length > 0 ? `
+                <div class="flex flex-wrap gap-1 mt-2">
+                    ${entry.tags.map(tag => `
+                        <span class="text-xs px-2 py-1 bg-gray-700 rounded-full">${tag}</span>
+                    `).join('')}
+                </div>
+            ` : ''}
+        `;
+    }
+
+    showPreview(event, preview, dot) {
+        if (this.activePreview) {
+            this.activePreview.classList.remove('visible');
+        }
+
+        const dotRect = dot.getBoundingClientRect();
+        const containerRect = this.container.getBoundingClientRect();
+        
+        let left = dotRect.left - containerRect.left - (preview.offsetWidth / 2);
+        const top = -120;
+
+        left = Math.max(10, Math.min(left, containerRect.width - preview.offsetWidth - 10));
+
+        preview.style.left = `${left}px`;
+        preview.style.top = `${top}px`;
+
+        preview.classList.add('visible');
+        this.activePreview = preview;
+        dot.classList.add('active');
+    }
+
+    hidePreview(preview) {
+        setTimeout(() => {
+            preview.classList.remove('visible');
+            const activeDot = this.container.querySelector('.timeline-dot.active');
+            if (activeDot) {
+                activeDot.classList.remove('active');
+            }
+        }, 100);
+    }
+
+    addTimelineMarkers(timeline, startDate, endDate) {
+        const months = [];
+        let currentDate = new Date(startDate);
+        
+        while (currentDate <= endDate) {
+            months.push(new Date(currentDate));
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+
+        months.forEach(date => {
+            const position = this.calculateTimelinePosition(date, startDate, endDate);
+            const marker = document.createElement('div');
+            marker.className = 'timeline-marker';
+            marker.style.left = `${position}%`;
+            marker.textContent = date.toLocaleDateString(undefined, { month: 'short', year: '2-digit' });
+            timeline.appendChild(marker);
+        });
+    }
+
+    toggleView() {
+        this.viewMode = this.viewMode === 'list' ? 'timeline' : 'list';
+        this.loadEntries();
     }
 
     clearFilters() {
         this.tagify.removeAllTags();
         this.startDateFilter.value = '';
         this.endDateFilter.value = '';
-        this.loadEntries(); // Reload entries without filters
+        this.loadEntries();
     }
 
     renderEntry(entry) {
         return `
-            <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
+            <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-4">
                 <div class="flex justify-between items-start">
                     <div class="space-y-4 w-full">
                         <div>
@@ -197,33 +428,48 @@ class EntriesList {
             const response = await fetch(`/api/entries/${entryId}`);
             const entry = await response.json();
 
-            // Display edit form with current entry details
             const editFormHtml = `
-                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                    <h3 class="text-lg font-semibold">Edit Entry</h3>
-                    <form id="editEntryForm">
-                        <div class="mb-4">
-                            <label class="block text-gray-400 text-sm mb-2" for="editTitle">Title</label>
-                            <input type="text" id="editTitle" name="title" value="${entry.title}" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-gray-400 text-sm mb-2" for="editContent">Content</label>
-                            <textarea id="editContent" name="content" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">${entry.content}</textarea>
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-gray-400 text-sm mb-2" for="editEntryDate">Entry Date</label>
-                            <input type="datetime-local" id="editEntryDate" name="entry_date" value="${new Date(entry.entry_date).toISOString().slice(0, 16)}" class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
-                        </div>
-                        <button type="button" onclick="window.entriesList.saveEntry('${entry.id}')" class="bg-primary hover:bg-secondary text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-                            Save
-                        </button>
-                    </form>
+                <div class="relative">
+                    <button onclick="window.entriesList.closeModal()" 
+                        class="absolute top-0 right-0 text-gray-400 hover:text-white">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                    
+                    <div class="pr-8">
+                        <h3 class="text-xl font-semibold mb-4">Edit Entry</h3>
+                        <form id="editEntryForm">
+                            <div class="mb-4">
+                                <label class="block text-gray-400 text-sm mb-2" for="editTitle">Title</label>
+                                <input type="text" id="editTitle" name="title" value="${entry.title}" 
+                                    class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-400 text-sm mb-2" for="editContent">Content</label>
+                                <textarea id="editContent" name="content" 
+                                    class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full min-h-[200px]">${entry.content}</textarea>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-gray-400 text-sm mb-2" for="editEntryDate">Entry Date</label>
+                                <input type="datetime-local" id="editEntryDate" name="entry_date" 
+                                    value="${new Date(entry.entry_date).toISOString().slice(0, 16)}" 
+                                    class="bg-gray-700 border border-gray-600 rounded-md p-2 w-full">
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="button" onclick="window.entriesList.saveEntry('${entry.id}')" 
+                                    class="bg-primary hover:bg-secondary text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+                                    Save
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             `;
 
-            this.container.innerHTML = editFormHtml;
+            this.showModal(editFormHtml);
 
-            // Initialize CKEditor on the content textarea
+            // Initialize CKEditor
             ClassicEditor
                 .create(document.querySelector('#editContent'), {
                     toolbar: ['heading', '|', 'bold', 'italic', 'link', 'bulletedList', 'numberedList', '|', 'blockQuote', 'insertTable', 'imageUpload', 'mediaEmbed', 'undo', 'redo'],
@@ -237,7 +483,7 @@ class EntriesList {
                     }
                 })
                 .then(editor => {
-                    this.editorInstance = editor; // Store the editor instance
+                    this.editorInstance = editor;
                 })
                 .catch(error => {
                     console.error('Error initializing CKEditor:', error);
@@ -252,8 +498,6 @@ class EntriesList {
     async saveEntry(entryId) {
         const form = document.getElementById('editEntryForm');
         const formData = new FormData(form);
-
-        // Get the content from CKEditor
         const content = this.editorInstance.getData();
 
         try {
@@ -261,7 +505,7 @@ class EntriesList {
                 method: 'PUT',
                 body: JSON.stringify({
                     title: formData.get('title'),
-                    content: content, // Use CKEditor content
+                    content: content,
                     entry_date: formData.get('entry_date')
                 }),
                 headers: {
@@ -270,6 +514,7 @@ class EntriesList {
             });
 
             if (response.ok) {
+                this.closeModal();
                 this.loadEntries();
                 showNotification('Entry updated successfully');
             } else {
@@ -289,6 +534,7 @@ class EntriesList {
                 });
                 
                 if (response.ok) {
+                    this.closeModal();
                     this.loadEntries();
                     showNotification('Entry deleted successfully');
                 } else {
