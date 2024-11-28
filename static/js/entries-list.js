@@ -4,6 +4,8 @@ class EntriesList {
     constructor() {
         this.container = document.getElementById('entriesList');
         this.tagFilter = document.getElementById('tagFilter');
+        this.startDateFilter = document.getElementById('startDateFilter');
+        this.endDateFilter = document.getElementById('endDateFilter');
         this.initializeTagify();
         this.editorInstance = null; // Store CKEditor instance
     }
@@ -79,9 +81,17 @@ class EntriesList {
         if (this.tagify && this.tagify.value.length > 0) {
             tagFilter = this.tagify.value.map(tag => tag.value).join(',');
         }
-        
+
+        const startDate = this.startDateFilter.value;
+        const endDate = this.endDateFilter.value;
+        const queryParams = new URLSearchParams();
+
+        if (tagFilter) queryParams.append('tag', tagFilter);
+        if (startDate) queryParams.append('start_date', startDate);
+        if (endDate) queryParams.append('end_date', endDate);
+
         try {
-            const response = await fetch(`/api/entries?${tagFilter ? 'tag=' + tagFilter : ''}`);
+            const response = await fetch(`/api/entries?${queryParams.toString()}`);
             const entries = await response.json();
             
             this.container.innerHTML = entries.map(entry => this.renderEntry(entry)).join('') || 
@@ -90,6 +100,13 @@ class EntriesList {
             console.error('Error:', error);
             this.container.innerHTML = '<p class="text-red-500">Error loading entries</p>';
         }
+    }
+
+    clearFilters() {
+        this.tagify.removeAllTags();
+        this.startDateFilter.value = '';
+        this.endDateFilter.value = '';
+        this.loadEntries(); // Reload entries without filters
     }
 
     renderEntry(entry) {

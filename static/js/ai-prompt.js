@@ -2,23 +2,34 @@ import { showNotification } from './utils.js';
 
 class AIPrompt {
     constructor() {
-        this.button = document.getElementById('generateQuestion');
+        this.generateButton = document.getElementById('generateQuestion');
+        this.moveToTitleButton = document.getElementById('moveToTitle');
+        this.suggestionInput = document.getElementById('suggestionInput');
         this.display = document.getElementById('questionDisplay');
+        this.titleField = document.querySelector('input[name="title"]'); // Select by name attribute
         this.init();
     }
 
     init() {
-        this.button.addEventListener('click', () => this.generateQuestion());
+        this.generateButton.addEventListener('click', () => this.generateQuestion());
+        this.moveToTitleButton.addEventListener('click', () => this.moveToTitle());
     }
 
     async generateQuestion() {
-        this.button.disabled = true;
-        this.button.textContent = 'Generating...';
+        this.generateButton.disabled = true;
+        this.generateButton.textContent = 'Generating...';
         this.display.innerHTML = '<p class="text-gray-300">Generating question...</p>';
         
+        const suggestion = this.suggestionInput.value.trim();
+        const requestBody = suggestion ? { suggestion } : {};
+
         try {
             const response = await fetch('/api/generate-question', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
             });
             const data = await response.json();
             
@@ -31,8 +42,17 @@ class AIPrompt {
             console.error('Error:', error);
             this.display.innerHTML = '<p class="text-red-500">Error generating question</p>';
         } finally {
-            this.button.disabled = false;
-            this.button.textContent = 'Generate New Question';
+            this.generateButton.disabled = false;
+            this.generateButton.textContent = 'Generate New Question';
+        }
+    }
+
+    moveToTitle() {
+        const questionText = this.display.textContent;
+        if (this.titleField) {
+            this.titleField.value = questionText;
+        } else {
+            console.error('Title field not found');
         }
     }
 }

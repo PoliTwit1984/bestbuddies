@@ -14,7 +14,8 @@ Best Buddy Journal is a Flask-based web application that allows users to create 
   - Add tags for organization
   - Upload multiple media files
   - View entries in chronological order
-  - Filter entries by tags
+  - Filter entries by tags and date range
+  - "Clear Filter" button for resetting filters
   - Automatic timestamp tracking (creation and entry dates)
   - Predefined tags for father's journal context
 

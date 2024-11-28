@@ -6,9 +6,21 @@
                 <input type="text" id="tagFilter" placeholder="Filter by tag"
                     class="bg-gray-700 border border-gray-600 rounded-md p-2 focus:outline-none focus:border-primary form-input tagify-input">
             </div>
+            <div class="relative">
+                <input type="date" id="startDateFilter" placeholder="Start Date"
+                    class="bg-gray-700 border border-gray-600 rounded-md p-2 focus:outline-none focus:border-primary form-input">
+            </div>
+            <div class="relative">
+                <input type="date" id="endDateFilter" placeholder="End Date"
+                    class="bg-gray-700 border border-gray-600 rounded-md p-2 focus:outline-none focus:border-primary form-input">
+            </div>
             <button onclick="window.entriesList.loadEntries()"
                 class="bg-primary hover:bg-secondary text-white font-semibold py-2 px-4 rounded-md transition duration-200">
                 Filter
+            </button>
+            <button onclick="window.entriesList.clearFilters()"
+                class="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
+                Clear Filter
             </button>
         </div>
     </div>

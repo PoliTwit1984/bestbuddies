@@ -197,6 +197,14 @@ def upload_image():
 @app.route('/api/generate-question', methods=['POST'])
 def generate_question():
     try:
+        data = request.json
+        suggestion = data.get('suggestion', '')
+
+        prompt_content = "Generate a thoughtful journal prompt that helps capture meaningful memories and life experiences to share from a father to a son. The prompt should encourage deep reflection and detailed responses. Only include the prompt, nothing else. The prompt should be one sentence that can also be used as a title for a journal entry."
+        
+        if suggestion:
+            prompt_content += f" Consider the following suggestion: {suggestion}."
+
         message = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
@@ -207,7 +215,7 @@ def generate_question():
                     "content": [
                         {
                             "type": "text", 
-                            "text": "Generate a thoughtful journal prompt that helps capture meaningful memories and life experiences. The prompt should encourage deep reflection and detailed responses."
+                            "text": prompt_content
                         }
                     ]
                 }

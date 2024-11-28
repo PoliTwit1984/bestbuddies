@@ -20,6 +20,8 @@
 - [x] Enhanced CKEditor with image upload capabilities
 - [x] Updated UI with darker coral orange and accent colors
 - [x] Changed app name to Best Buddy Journal
+- [x] Implemented date filtering for journal entries
+- [x] Added "Clear Filter" button for resetting filters
 
 ## Working Features
 1. Core Functionality
@@ -33,6 +35,8 @@
    - [x] Tag suggestions and autocomplete
    - [x] Rich text editing with formatting options
    - [x] Edit functionality for journal entries
+   - [x] Date range filtering
+   - [x] "Clear Filter" button for resetting filters
 
 2. Media Handling
    - [x] File type validation
@@ -82,7 +86,7 @@
 3. Search & Organization
    - [ ] Full-text search
    - [ ] Advanced tag filtering
-   - [ ] Date range filtering
+   - [x] Date range filtering
    - [ ] Timeline view
 
 ### Medium Priority
