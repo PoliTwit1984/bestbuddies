@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    {% include 'components/entry_form.html' %}
+    {% include 'components/ai_prompt.html' %}
+</div>
+
+{% include 'components/entries_list.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/entry-form.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/entries-list.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='js/ai-prompt.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        window.entriesList.loadEntries();
+    });
+</script>
+{% endblock %}
