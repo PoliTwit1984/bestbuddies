@@ -1,4 +1,4 @@
-# Legacy Journal Project Status
+# Best Buddy Journal Project Status
 
 ## Latest Updates (November 27, 2024)
 - [x] Added rich text editing with CKEditor integration
@@ -15,9 +15,11 @@
 - [x] Enhanced tag input with Tagify integration
 - [x] Improved tag input styling for dark theme
 - [x] Fixed tag dropdown dark theme styling
-- [x] Added light mode toggle for UI
+- [x] Removed light mode toggle for UI
 - [x] Implemented edit functionality for journal entries
 - [x] Enhanced CKEditor with image upload capabilities
+- [x] Updated UI with darker coral orange and accent colors
+- [x] Changed app name to Best Buddy Journal
 
 ## Working Features
 1. Core Functionality
@@ -42,7 +44,7 @@
 
 3. User Interface
    - [x] Dark theme design
-   - [x] Light mode toggle
+   - [ ] Light mode toggle (removed)
    - [x] File upload previews
    - [x] Success/error notifications
    - [x] Loading states
@@ -141,3 +143,5 @@
 - Tag dropdown styling fixed for dark theme
 - Attempted to fix tag dropdown limitation by removing maxItems setting, but issue persists
 - All tags are properly stored in database but not all showing in dropdown
+- UI updated with darker coral orange and accent colors
+- App name changed to Best Buddy Journal

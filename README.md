@@ -1,10 +1,10 @@
-# Legacy Journal
+# Best Buddy Journal
 
 A digital journaling application designed to help preserve memories through text, media, and AI-assisted prompts.
 
 ## Overview
 
-Legacy Journal is a Flask-based web application that allows users to create and maintain a digital journal with support for text entries, media uploads (images, videos, audio), and AI-generated prompts to inspire meaningful reflection.
+Best Buddy Journal is a Flask-based web application that allows users to create and maintain a digital journal with support for text entries, media uploads (images, videos, audio), and AI-generated prompts to inspire meaningful reflection.
 
 ## Features
 
@@ -52,7 +52,6 @@ Legacy Journal is a Flask-based web application that allows users to create and 
 
 - **User Interface**
   - Modern dark theme
-  - Light mode toggle for enhanced accessibility
   - Responsive design
   - Real-time file previews
   - Success/error notifications
@@ -60,6 +59,7 @@ Legacy Journal is a Flask-based web application that allows users to create and 
   - Date/time picker with current time default
   - Component-based architecture
   - Enhanced tag input interface
+  - Darker coral orange accent colors
 
 ## Technical Stack
 
