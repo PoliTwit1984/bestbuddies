@@ -23,7 +23,7 @@
 - [x] Implemented date filtering for journal entries
 - [x] Added "Clear Filter" button for resetting filters
 
-## Working Features
+## Working Features ##
 1. Core Functionality
    - [x] Journal entry creation and display
    - [x] Custom entry date/time selection
